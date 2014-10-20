@@ -7,9 +7,10 @@
  */
 class Jsnpdo_factory 
 {
+    //記錄是誰用靜態方式做呼叫, 例如 jsntable::iary() 代表資料表名稱叫做 jsntable
     public static $table_name;
 
-    //$column[欄位名稱] = 欄位值;
+    //紀錄 $column[欄位名稱] = 欄位值; 通常用在新增修改時。
     protected static $column = array();
 
     // 若使用工廠模型，就填寫要建置的php script 檔案路徑
@@ -24,14 +25,16 @@ class Jsnpdo_factory
     // 資料庫連接成功的儲存位置 array("_自訂資料庫名" => PDO資源)
     public static $dbh = array();
 
-    //切換資料庫
+    /**
+     * 切換資料庫
+     * @param   $db   切換存放在倉儲中的資料庫命名。可以使用任何的單字。
+     */
     public static function switch_db($db)
     {
         $pdost = self::$dbh[$db];
 
         if (empty($pdost)) throw new Exception("找不到可使用的 PDO 連接資源名稱：{$db}, 請先使用 Jsnpdo_factory::connect()->db_house()");
         
-
         jsnpdo::$PDO = self::$dbh[$db];
     }
 
@@ -64,26 +67,6 @@ class Jsnpdo_factory
     public static function autoload_eval($name)
     {
 
-        // //如果發現前綴字等於資料庫名稱
-        // foreach (self::$resp as $dbbef)
-        // {
-        //     if (substr_count($name, $dbbef) > 0) 
-        //     {
-        //         die;
-        //         $usedb = 1;
-
-        //         //強制中斷尋找
-        //         break;
-        //     }
-        // }
-
-        // if ($usedb == 1)
-        // {
-        //     //替換PDO連接資源
-        //     Jsnpdo::$PDO = self::$dbh[$dbbef];
-        // }
-
-
         $tbname = trim($name);
 
         // 若存在地圖裡，將使用別名
@@ -91,16 +74,7 @@ class Jsnpdo_factory
 
         $script = " class $tbname extends Jsnpdo_factory {} ";
 
-        // //使用命名空間
-        // if ($usedb)
-        // {
-        //     echo $nsc = " namespace {$dbbef}; ";
-        //     eval($nsc);
-        //     die;
-        // }
-
         eval($script);
-
     }
 
     // 取得資料表的名稱或別名，有指定別名，別名優先
@@ -127,12 +101,14 @@ class Jsnpdo_factory
     }
 
     /**
-     * 決定工廠使用虛擬或實體。
+     * 決定工廠要使用 虛擬 或 實體 產生資料表物件的方式。
      * 
-     * @param   $type     有兩種方式, 使用虛擬工廠 virtual 或 實體工廠 physical 
+     * @param   $type     使用虛擬工廠 virtual 或 實體工廠 physical 
      *                    建議使用虛擬工廠，在增加資料表的時候，彈性非常的高。
      *                    實體工廠則在初始化、建立或刪除資料表時才會被建置。
      *                    但是要能使用 eval() 涵式。
+     *                    
+     * @return            返回實體物件
      */
     public static function build_virtual_physical($type)
     {
@@ -142,8 +118,6 @@ class Jsnpdo_factory
         }
         elseif ($type == "physical")
         {
-            
-
             $fun = "autoload_script_file";
         }
         else
@@ -156,7 +130,9 @@ class Jsnpdo_factory
         return new Jsnpdo_factory;
     }
 
-    //可自訂匹配表格名稱到物件名稱
+    // 自訂資料表物件的別名。
+    // 如 array("jsntable_2" => "jsntable_second") 代表資料表 jsntable_2 的別名是 jsntable_second
+    // 對其操作時，將使用別名而不可使用原名。如 jsntable_second::iary()
     public static function map(array $ary)
     {
         foreach ($ary as $key => $val)
@@ -180,7 +156,6 @@ class Jsnpdo_factory
      */
     public static function query_factory($sql, $status_debug)
     {
-
         $query = Jsnpdo::query($sql, $status_debug);
 
         self::table_to_class_to_file();
@@ -191,7 +166,7 @@ class Jsnpdo_factory
         return $query;
     }
 
-    // 
+    // 調出資料庫所有資料表，並產生資料表模型檔
     public static function table_to_class_to_file()
     {
         //所有資料表
@@ -203,11 +178,11 @@ class Jsnpdo_factory
 
 
     /**
-     * 建立或重整 model 工廠
-     * @param   $table_ary 資料表名稱
+     * 產出資料表模型
+     * @param   $table_ary 資料表名稱如 array("member", "news")
      * 
      */
-    protected static function factory($table_ary)
+    protected static function factory(array $table_ary)
     {
         foreach ($table_ary as $tb)
         {
@@ -220,7 +195,11 @@ class Jsnpdo_factory
         file_put_contents("db_model.php", $phpscript);
     }
 
-    // 當前資料庫的所有資料表名稱陣列
+    /**
+     * 當前資料庫的所有資料表名稱
+     * @param   $DataList   資料庫的列表
+     * @return              資料表名稱陣列
+     */
     protected static function get_table_ary($DataList)
     {
         if (count($DataList) > 0) foreach ($DataList as $DataInfo)
@@ -239,6 +218,11 @@ class Jsnpdo_factory
         return $table_ary;
     }
 
+    /**
+     * 資料表使用新增或刪除時，填入欄位的陣列。值不必添加跳脫。
+     * @param   $coln 欄位名稱
+     * @param   $val  欄位值。
+     */
     public static function ary($coln, $val)
     {
         self::$column[$coln] = $val;
@@ -246,10 +230,9 @@ class Jsnpdo_factory
 
     public static function __callStatic($name, array $arguments)
     {
-        //是where 使用的條件替代嗎
+        //是where 使用的條件替代嗎? 例如當呼叫了 jsntable::_id(1);
         if (substr($name, 0, 1) == "_")
         {
-
             Jsnpdo::$name($arguments[0]);
 
             return true;
@@ -259,7 +242,10 @@ class Jsnpdo_factory
         return self::sql_method($name, $arguments);
     }
 
-    //資料庫倉儲
+    /**
+     * 把當前連接資料庫的PDO資源，放入自訂名稱的倉儲
+     * @param   $database_name     名稱
+     */
     public static function db_house($database_name)
     {
         $befclass = $database_name;
@@ -269,11 +255,6 @@ class Jsnpdo_factory
         self::$resp[] = $befclass;
     }
 
-    //提供不同資料庫指定資料表操作
-    public static function table($table_name)
-    {
-        return new $table_name;
-    }
 
 
 
@@ -290,10 +271,9 @@ class Jsnpdo_factory
         //連接資料庫
         if ($name == "connect")
         {
-            $ary = self::quo_colval();
+            self::$column = array();
 
             Jsnpdo::connect($arguments[0], $arguments[1], $arguments[2], $arguments[3], $arguments[4]);
-            
             
             return new Jsnpdo_factory;
         }
@@ -350,6 +330,7 @@ class Jsnpdo_factory
             return Jsnpdo::truncate(self::$table_name, $arguments[0]);
         }
 
+        // in 輔助
         elseif ($name == "in")
         {
             return Jsnpdo::in($name, $arguments[0]);
@@ -402,7 +383,8 @@ class Jsnpdo_factory
             return self::query_factory($arguments[0], $arguments[1]);
         }
 
-        //quote
+        // quote, 自動添加 '' 並將危險字元跳脫。使用PDO prepare 不建議直接指定。
+        //僅做 debug 的添加
         elseif ($name == "quo" or $name == "quote")
         {
             return Jsnpdo::quo($arguments[0]);
@@ -440,7 +422,7 @@ class Jsnpdo_factory
 
 
     /**
-     * 匹配查詢的參數位置
+     * 匹配查詢的參數位置，用以取得查詢的欄位、其他條件、除錯模式
      * @param   $arguments 接收的參數陣列
      * @return             反回物件
      */
@@ -479,6 +461,7 @@ class Jsnpdo_factory
             $else         = $arguments[1];
             $status_debug = $arguments[2];
         }
+
         $obj->column       = $column;
         $obj->else         = $else;
         $obj->status_debug = $status_debug;
@@ -487,25 +470,6 @@ class Jsnpdo_factory
     }
 
 
-    // 把已經設定過的欄位自動quote()
-    protected static function quo_colval()
-    {
-        $ary = self::$column;
-
-        foreach ($ary as $key => $val)
-        {
-            if (!isset($val)) continue; 
-
-            // $ary[$key]          =   Jsnpdo::quo($val);
-
-            $ary[$key]          =   ":{$key}";
-        }
-
-        //需清空
-        self::$column = array();
-
-        return $ary;
-    }
 
 }
 ?>
