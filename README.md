@@ -88,10 +88,10 @@ jsnpdo
         $j->_id(10);
         $DataList = $j->sel("*", "jsntable", "where id < :id ");
 
-        // in ... or not in ....
+        // in
         $place_holder            = $j->in("id", array(1, 3));
-        $DataList   = $j->sel("*", "jsntable", "where id in ({$place_holder})");
-
+        $DataList                = $j->sel("*", "jsntable", "where id in ({$place_holder})");
+        
         // like
         $j->_id("%1%");
         $DataList   = $j->sel("*", "jsntable", "where id like :id");
@@ -108,7 +108,7 @@ jsnpdo
         $ary['title']               =    NULL;
         $ary['content']             =    "內容修改" . time();
         $result                     =    $j->uary("jsntable", $ary, "where id = :id", "POST");
-        if ($result > 0)                 echo "修改成功 <br>";
+        
 </pre>
 
 
