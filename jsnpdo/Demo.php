@@ -315,8 +315,7 @@ try
     //delete
         unset($_POST, $ary);
         $j->_id(2);
-        $j::$debug_style = "fixed";
-        $result                     =    $j->delete("jsntable", "id = :id", str);
+        $result                     =    $j->delete("jsntable", "id = :id");
         if ($result > 0)                 echo "刪除成功 <br>";
         else throw new Exception("刪除發生錯誤");
 
