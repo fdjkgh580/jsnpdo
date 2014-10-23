@@ -414,6 +414,11 @@ class Jsnpdo_factory
             return Jsnpdo::$sql;
         }
 
+        elseif ($name == "debug_style")
+        {
+            return Jsnpdo::debug_style($arguments[0]);
+        }
+
         else
         {
             throw new Exception("找不到可以對應的方法： {$name}");

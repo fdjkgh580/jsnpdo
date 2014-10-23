@@ -62,7 +62,7 @@ class Jsnpdo extends Abstract_Jsnpdo
 	// 偵錯要顯示的文字。當該屬性被設定時，偵錯顯示將優先採用。
 	public static $debug_msg;
 
-	// 除錯的CSS顯示方式		
+	// 除錯的CSS顯示方式。 
 	public static $debug_style = "block";
 
 	//設定 1 會直接返回SQL字串，而不會執行
@@ -240,12 +240,14 @@ class Jsnpdo extends Abstract_Jsnpdo
 		//debug str
 		if (self::debug($status_debug) == "str")
 		{
-			self::$debug_msg = $sql;
+			self::$debug_msg 	=    $sql;
 
-			self::sel("*", $table_name, "", "str");
+			$pk 			  	=    self::primary_key($table_name);
+
+			self::sel("*", $table_name, "order by `{$pk}` desc", "str");
 		}
 
-		$result 			=	self::query($sql, $status_debug);
+		$result 				=    self::query($sql, $status_debug);
 
 		if (self::$get_string == 1)
 		{
@@ -253,6 +255,16 @@ class Jsnpdo extends Abstract_Jsnpdo
 		}
 
 		return $result->rowCount();
+	}
+
+	//取得該資料表的 primarykey 名稱
+	protected static function primary_key($table_name)
+	{
+		$showres 		=	self::query("show index from `{$table_name}`", NULL);
+
+		$indexinfo 		=	$showres->fetch(PDO::FETCH_ASSOC);
+
+		return $indexinfo['Column_name'];
 	}
 
 
@@ -273,7 +285,12 @@ class Jsnpdo extends Abstract_Jsnpdo
 
 		elseif ($post_get == "GET") self::$request_ary = $_GET;
 
-		else 						self::$request_ary = NULL;
+		else 						
+		{
+			if (isset($post_get)) 	throw new Exception("請指定指定 POST 或 GET");
+			
+			self::$request_ary = NULL;
+		}
 	}
 
 	/**
@@ -297,7 +314,7 @@ class Jsnpdo extends Abstract_Jsnpdo
 		// $ary 原型如 $ary['title'] = "標題";
 		foreach ($ary as $key => $val)
 		{
-			$str[] 				= 	" `{$key}` = :{$key}";
+			$str[] 					= 	" `{$key}` = :{$key}";
 
 			//紀錄轉換對應表
 			self::$select_condition[$key] = $val;
@@ -306,15 +323,18 @@ class Jsnpdo extends Abstract_Jsnpdo
 		// 製作修改字串如 『title = :title, content = :content』
 		$cond						=	implode(", ", $str);
 
-		$sql 						=	"update `{$table_name}` set {$cond} {$else}";
+		$sql 						=	"update `{$table_name}` set {$cond} {$else}; ";
 
 		//debug str
 		if (self::debug($status_debug) == "str")
 		{
 			//轉換
-			self::$debug_msg = self::sql_replace_condition($sql);;
+			self::$debug_msg 		= 	self::sql_replace_condition($sql);
 
-			self::sel("*", $table_name, "", "str");
+			//把要修改的欄位做上色動作
+			self::update_bgcolor($ary);
+
+			self::sel("*", $table_name, "{$else}", "str");
 		}
 
 
@@ -326,6 +346,28 @@ class Jsnpdo extends Abstract_Jsnpdo
 		}
 
 		return $result->rowCount();
+	}
+
+	//使用CSS 把要修改的欄位上色
+	public static function update_bgcolor(array $ary)
+	{
+		foreach ($ary as $column => $value) 
+		{
+			$cssclass[] 			= 	".php_jsnao_warning_style .db tbody td.{$column} ";
+		}
+
+		$cssclass 					=	implode(", ", $cssclass);
+		
+		echo 
+		"
+		<style>
+			{$cssclass} 
+			{
+				background: #DE4343	;
+				color: white !important;
+			}
+		</style>
+		";
 	}
 
 
@@ -487,7 +529,7 @@ class Jsnpdo extends Abstract_Jsnpdo
 			throw new Exception("delete 方法務必指定 where 條件");
 		}
 
-		$sql					=	"delete from {$table_name} where {$where}";
+		$sql					=	"delete from {$table_name} where {$where}; ";
 
 		//debug str
 		if (self::debug($status_debug) == "str")
@@ -517,7 +559,7 @@ class Jsnpdo extends Abstract_Jsnpdo
 	{
 		$table_name				=	trim($table_name);
 
-		$sql					=	"truncate table `{$table_name}`";
+		$sql					=	"truncate table `{$table_name}`;";
 
 		//debug str
 		if (self::debug($status_debug) == "str")
@@ -649,6 +691,16 @@ class Jsnpdo extends Abstract_Jsnpdo
 	// H:::::::H     H:::::::HE::::::::::::::::::::EL::::::::::::::::::::::LP::::::::P          
 	// HHHHHHHHH     HHHHHHHHHEEEEEEEEEEEEEEEEEEEEEELLLLLLLLLLLLLLLLLLLLLLLLPPPPPPPPPP      	
 
+
+	/**
+	 * 除錯 CSS樣式 
+	 * @param   $type block(方框) | fixed(固定位置在螢幕頂端) | string (純文字。適合ajax偵錯)
+	 */
+	public static function debug_style($type)
+	{
+		self::$debug_style = $type;
+	}
+
 	//產生查詢字串
 	protected static function select_string($column, $table_name, $else)
 	{
@@ -658,7 +710,7 @@ class Jsnpdo extends Abstract_Jsnpdo
 
 		$else 					=	trim($else);
 
-		return "select {$column} from {$table_name} {$else}";
+		return "select {$column} from {$table_name} {$else}; ";
 	}
 
 	//除錯時避免資料量過大，將自動添加 limit
@@ -835,8 +887,8 @@ class Jsnpdo extends Abstract_Jsnpdo
 		//若屬性已被指定，將優先使用
 		if (!empty(self::$debug_msg))
 		{
-			$selmsg 				=	self::$debug_msg;
-			$msg 					=	"<div>{$selmsg}</div><div class='defmsg'>{$msg}</div>";
+			$pm 				=	self::$debug_msg;
+			$msg 					=	"<div class='orgmsg'>{$pm}</div><div class='defmsg'>{$msg}</div>";
 		}
 
 		if ($table) foreach ($table as $key => $list)
@@ -858,62 +910,83 @@ class Jsnpdo extends Abstract_Jsnpdo
 			//tbody, 取得每個td
 			foreach ($list as $column => $val)
 			{
-				$mix_body 		.=	"<td><div class='kjjsi_z77100_01'>{$val}</div></td>";
+				$mix_body 		.=	"<td class='{$column}'><div class='kjjsi_z77100_01'>{$val}</div></td>";
 			}
 
 			$tbody 				.=	"<tr>{$mix_body}</tr>";
 		}
 
+		if (self::$debug_style != "string")
+		{
+			echo 
+			"
+				<style>
+				.php_jsnao_warning_style
+				{
+					border: 1px solid rgb(156, 151, 151);
+					background: #E6E6E6;
+					font-family: consolas, '微軟正黑體';
+					line-height: 1.7em;
+					margin-top: 0.1em;
+					margin-bottom: 0.1em;
+					padding: 1em;
+					border-radius: 4px;
+					font-size: 18px;
+					word-break: break-all;
+				}
+				.php_jsnao_warning_style .orgmsg
+				{
+					background: #0CC09F;
+					color: white;
+					padding:1em;
+				}
+				.php_jsnao_warning_style .defmsg
+				{
+					background: #446CB3;
+					font-size: 16px;
+					color: white;
+					padding:1em 4em;
+				}
+
+				.php_jsnao_warning_style .db
+				{
+					width: 100% !important;
+					min-height: 240px;
+					table-layout: fixed;
+					border-collapse: collapse;
+				}
+				.php_jsnao_warning_style .db td, 
+				.php_jsnao_warning_style .db th 
+				{
+					border: 1px solid #616467;
+					padding: 0.3em 1em;
+				}
+				.php_jsnao_warning_style .db th 
+				{
+					background: #4a4d50;
+					color:white;
+					padding-top: 1em;
+					padding-bottom: 1em;
+				}
+				.php_jsnao_warning_style .db tbody tr
+				{
+					background: rgb(250, 243, 253);
+					color: #424242;
+				}
+				.php_jsnao_warning_style .db td .kjjsi_z77100_01
+				{
+					max-height:90px;
+					min-height:50px;
+					overflow:hidden;
+					font-size: 16px;
+				}
+
+				</style>
+			";
+		}
 		
-		echo 
-		"
-			<style>
-			.php_jsnao_warning_style
-			{
-				background: #5CC593;
-				font-family: consolas;
-				line-height: 1.7em;
-				margin-top: 0.1em;
-				margin-bottom: 0.1em;
-				padding: 1em;
-				border-radius: 4px;
-				font-size: 18px;
-				word-break: break-all;
-			}
-			.php_jsnao_warning_style .defmsg
-			{
-				color: #FFFFFF;
-			}
 
-			.php_jsnao_warning_style .db
-			{
-				border: 1px solid #FFFFFF;
-				width: 98% !important;
-				table-layout: fixed;
-				border-collapse: collapse;
-			}
-			.php_jsnao_warning_style .db td, 
-			.php_jsnao_warning_style .db th 
-			{
-				border: 1px solid #FFFFFF;
-				padding: 0.3em 1em;
-			}
-			.php_jsnao_warning_style .db th 
-			{
-				background: #353535;
-				color:white;
-			}
-			.php_jsnao_warning_style .db td .kjjsi_z77100_01
-			{
-				max-height:50px;
-				height:50px;
-				overflow:hidden;
-				font-size: 12px;
-			}
-
-			</style>
-		";
-		if (self::$debug_style == "position")
+		if (self::$debug_style == "fixed")
 		{
 			echo 
 			"

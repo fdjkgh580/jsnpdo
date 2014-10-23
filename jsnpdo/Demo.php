@@ -16,6 +16,9 @@ try
 
     echo "<h1>打造工廠來產生模型</h1>";
 
+    //選用 CSS 除錯樣式
+        Jsnpdo_factory::debug_style("block");
+
     //指定別名
         Jsnpdo_factory::map(array
         (
@@ -128,7 +131,7 @@ try
 
     //查詢 長名 select()
         jsntable::_id(2);
-        $DataList     = jsntable::sel("where id <= 1"); //可以直接寫條件 + 選用 debug
+        $DataList     = jsntable::sel("where id <= 1", str); //可以直接寫條件 + 選用 debug
         $DataList2    = jsntable::sel("id as my_id", "where id = :id"); //或顯示欄位 + 條件 + 選用debug
         $select_num   = jsntable::select_num();
         if (count($DataList) == count($DataList2) and count($DataList2) == $select_num and $select_num == 1)
