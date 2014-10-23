@@ -9,7 +9,6 @@ class comment extends Jsnpdo_factory {}
 class contact extends Jsnpdo_factory {} 
 class extend_field extends Jsnpdo_factory {} 
 class file extends Jsnpdo_factory {} 
-class jsntable extends Jsnpdo_factory {} 
 class json_column extends Jsnpdo_factory {} 
 class loginlog extends Jsnpdo_factory {} 
 class member extends Jsnpdo_factory {} 

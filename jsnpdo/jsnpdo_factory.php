@@ -220,11 +220,14 @@ class Jsnpdo_factory
 
     /**
      * 資料表使用新增或刪除時，填入欄位的陣列。值不必添加跳脫。
-     * @param   $coln 欄位名稱
-     * @param   $val  欄位值。
+     * @param   $coln       欄位名稱
+     * @param   $val        欄位值。
+     * @param   $raw_data   保護字串？如使用 mysql 函數 now() 時需要指定為 true
      */
-    public static function ary($coln, $val)
+    public static function ary($coln, $val, $protection_data = true)
     {
+        $val                 = ($protection_data == true) ? jsnpdo::quo($val) : $val;
+
         self::$column[$coln] = $val;
     }
 

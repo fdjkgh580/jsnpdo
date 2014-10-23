@@ -1,7 +1,14 @@
+
 <?php
 
 /**
  *
+ * v3.4
+ * - 修正 CSS 除錯樣式色彩
+ * - 添加不使用 '' 的寫法。處理需要使用 MySQL 的內建函數如 NOW() 的時候
+ * - 修正某些時候 PDO 執行發生錯誤不會顯示錯誤訊息
+ * - quote() 不再使用 PDO::quote()。
+ * 
  * v3.3
  * - 切換資料庫功能
  * - 工廠模式建議使用虛擬方法。日後將考慮移除實體工廠
@@ -145,7 +152,7 @@ class Jsnpdo extends Abstract_Jsnpdo
 
 			if (!$result)
 			{
-				$error_ary = self::$PDO->errorinfo();
+				$error_ary = $result->errorinfo();
 
 				throw new Exception("PDO 執行 query 發生錯誤：{$error_ary[2]}");
 			}
@@ -154,55 +161,38 @@ class Jsnpdo extends Abstract_Jsnpdo
 			// 所以 $execute_map 希望得到的是如 array(":id" => 1)
 			$execute_map = self::condition_replace_request();
 			
+
+
 			// 過濾掉不存在SQL中的項目。
-			// 如 array(:myid => 1) 不存在SQL字串，將被剔除
+			// 如 array(:myid => 1) 不存在SQL字串，將被剔除, 否則多餘的參數會錯誤
 			foreach ($execute_map as $token => $token_val)
 			{
 				if (substr_count($sql, $token) == 0) unset($execute_map[$token]);
 			}
 
-			$result->execute($execute_map);
+			foreach ($execute_map as $token => $token_val)
+			{
+				$execute_map[$token] = trim($token_val, "'");
+			}
 
-			if (!empty($result))
+			$bool = $result->execute($execute_map);
+			
+
+			if ($bool == true)
 			{
 				return $result;
 			}
 
-			$error_ary = self::$PDO->errorinfo();
+
+			// 準備給 PDO 的 execute() 對應陣列
+			$error_ary = $result->errorinfo();
 
 			throw new Exception("PDO 執行 query 發生錯誤：{$error_ary[2]}");
 		}
 	}
 
 
-	/**
-	 * 檢查有無where語句的替換值。
-	 * 
-	 * 例如將 array("title" => "標題") 形成為 array(":title" => "標題") 給 PDO::execute()
-	 * 提供 PDO::prepare() 使用 where 條件時可以透過指定 『where title = :title』將 :title 對應到 標題
-	 * 若指定使用 POST 或 GET 將自訂引用
-	 */
-	protected static function condition_replace_request()
-	{
-		foreach (self::$select_condition as $column_name => $column_val)
-		{
-
-			if (!empty($column_val))
-			{
-				$befcondi[":" . $column_name] = $column_val;	
-				continue;
-			}
-
-			$befcondi[":" . $column_name] = !isset(self::$request_ary) ? $column_val : self::$request_ary[$column_name];
-		}
-
-		//重設
-		self::$request_ary = NULL;
-
-		return $befcondi;
-	}
-
-
+	
 
 	/**
 	 * 新增
@@ -225,8 +215,8 @@ class Jsnpdo extends Abstract_Jsnpdo
 			$col_name[] 	=	"`{$key_trim}`";
 
 			// 欄位值陣列
-			$col_val[]  	= 	":{$key_trim}"; 
-			
+			$col_val[]  	= 	self::raw_protection($key_trim, $val); 
+
 			self::$select_condition[$key] = $val;
 		}
 
@@ -235,8 +225,7 @@ class Jsnpdo extends Abstract_Jsnpdo
 		$col_val_str 		= 	implode(", ", $col_val);
 
 		$sql 				= 	" insert into `{$table_name}` ({$col_name_str}) values ({$col_val_str}); ";
-		
-		
+
 		//debug str
 		if (self::debug($status_debug) == "str")
 		{
@@ -257,16 +246,6 @@ class Jsnpdo extends Abstract_Jsnpdo
 		return $result->rowCount();
 	}
 
-	//取得該資料表的 primarykey 名稱
-	protected static function primary_key($table_name)
-	{
-		$showres 		=	self::query("show index from `{$table_name}`", NULL);
-
-		$indexinfo 		=	$showres->fetch(PDO::FETCH_ASSOC);
-
-		return $indexinfo['Column_name'];
-	}
-
 
 	// 同 iary()
 	public static function insert()
@@ -275,23 +254,6 @@ class Jsnpdo extends Abstract_Jsnpdo
 		return self::iary($ary[0], $ary[1], $ary[2], $ary[3]);
 	}
 
-	/**
-	 * 確認使用是否設定 POST 或 GET 參數，若有就設定屬性供後續使用
-	 * @param   $post_get 		"POST" | "GET" | NULL
-	 */
-	protected static function check_param_post_get($post_get)
-	{
-		if ($post_get == "POST") 	self::$request_ary = $_POST;
-
-		elseif ($post_get == "GET") self::$request_ary = $_GET;
-
-		else 						
-		{
-			if (isset($post_get)) 	throw new Exception("請指定指定 POST 或 GET");
-			
-			self::$request_ary = NULL;
-		}
-	}
 
 	/**
 	 * 修改
@@ -314,7 +276,9 @@ class Jsnpdo extends Abstract_Jsnpdo
 		// $ary 原型如 $ary['title'] = "標題";
 		foreach ($ary as $key => $val)
 		{
-			$str[] 					= 	" `{$key}` = :{$key}";
+			$uk 					=	self::raw_protection($key, $val);
+
+			$str[] 					= 	" `{$key}` = $uk ";
 
 			//紀錄轉換對應表
 			self::$select_condition[$key] = $val;
@@ -340,34 +304,13 @@ class Jsnpdo extends Abstract_Jsnpdo
 
 		$result 					=	self::query($sql, $status_debug);
 		
+
 		if (self::$get_string == 1)
 		{
 			return $result;
 		}
 
 		return $result->rowCount();
-	}
-
-	//使用CSS 把要修改的欄位上色
-	public static function update_bgcolor(array $ary)
-	{
-		foreach ($ary as $column => $value) 
-		{
-			$cssclass[] 			= 	".php_jsnao_warning_style .db tbody td.{$column} ";
-		}
-
-		$cssclass 					=	implode(", ", $cssclass);
-		
-		echo 
-		"
-		<style>
-			{$cssclass} 
-			{
-				background: #DE4343	;
-				color: white !important;
-			}
-		</style>
-		";
 	}
 
 
@@ -398,56 +341,6 @@ class Jsnpdo extends Abstract_Jsnpdo
 		}
 
 	}
-
-	/**
-	 * 準備給 PDO 的 execute() 對應陣列
-	 * 提供如 array(id => 1, title = "標題")
-	 * 
-	 * @param   $name       想要轉換字符的名稱作為鍵, 不可包含前贅字符 『:』。如 id
-	 * @param   $val  	    如 1
-	 * @return        		bool
-	 */
-	protected static function execute_ary($name, $val)
-	{
-		//實際欄位名稱
-		$coln = ltrim($name, "_");
-
-		self::$select_condition[$coln] = $val;
-
-		return true;
-	}
-
-	/**
-	 * 使用在組合 where ... in ... 語句, 產生如 where id in (?, ?, ?) 
-	 * 
-	 * @param   $name    要替換的辨識字符。 如 where id in (1, 3, 5), 那就是填 id
-	 * @param   $inary   in 的陣列。 如 array(1, 3, 5)
-	 * @return [type]    回傳一個佔位的變數字串。可以給SQL語句使用如 where id in ($in), 將使用如 
-	 *                   where id in (:54448c5f6dd78, :54448c5f6dd80, :54448c5f6dd86)
-	 */
-	public static function in($name, array $inary)
-	{
-
-		// 組合一個對應表, 如 array(:54448c5f6dd78 => 1)
-		foreach ($inary as $key => $val)
-		{
-			$uniqid       =    uniqid();
-			
-			// 提供返回文字使用
-			$return[]     =    ":{$uniqid}";
-			
-			$map[$uniqid] =    $val;
-		}
-
-		//提交給 execute_ary 陣列表
-		foreach ($map as $key => $val) self::execute_ary($key, $val);
-
-		//組合給返回SQL時可使用的字串
-		$str 			  =    implode(", ", $return);
-		
-		return $str;
-	}
-
 
 	/**
 	 * 多筆查詢
@@ -603,13 +496,17 @@ class Jsnpdo extends Abstract_Jsnpdo
 	}
 
 	/**
-	 * 保護與過濾欄位值
+	 * 在字串左右添加 '' 。並不使用 quote() 因為無法解除。
+	 * 這裡並不做SQL語句執行避免注入的安全性問題。
+	 * 只適合用在除錯的表示而已。
+	 * 
 	 * @param   $str 字串
-	 * @return       返回 '' 保護
+	 * @return       返回 '' 包圍
 	 */
 	public static function quo($str)
 	{
-		return self::$PDO->quote($str);
+		// return self::$PDO->quote($str);
+		return "'{$str}'";
 	}
 
 	// quo() 別名
@@ -691,6 +588,167 @@ class Jsnpdo extends Abstract_Jsnpdo
 	// H:::::::H     H:::::::HE::::::::::::::::::::EL::::::::::::::::::::::LP::::::::P          
 	// HHHHHHHHH     HHHHHHHHHEEEEEEEEEEEEEEEEEEEEEELLLLLLLLLLLLLLLLLLLLLLLLPPPPPPPPPP      	
 
+
+	//取得該資料表的 primarykey 名稱
+	protected static function primary_key($table_name)
+	{
+	    $showres        =   self::query("show index from `{$table_name}`", NULL);
+
+	    $indexinfo      =   $showres->fetch(PDO::FETCH_ASSOC);
+
+	    return $indexinfo['Column_name'];
+	}
+
+	/**
+	 * 確認使用是否設定 POST 或 GET 參數，若有就設定屬性供後續使用
+	 * @param   $post_get       "POST" | "GET" | NULL
+	 */
+	protected static function check_param_post_get($post_get)
+	{
+	    if ($post_get == "POST")    self::$request_ary = $_POST;
+
+	    elseif ($post_get == "GET") self::$request_ary = $_GET;
+
+	    else                        
+	    {
+	        if (isset($post_get))   throw new Exception("請指定指定 POST 或 GET");
+	        
+	        self::$request_ary = NULL;
+	    }
+	}
+
+	//使用CSS 把要修改的欄位上色
+	public static function update_bgcolor(array $ary)
+	{
+	    foreach ($ary as $column => $value) 
+	    {
+	        $cssclass[]             =   ".php_jsnao_warning_style .db tbody td.{$column} ";
+	    }
+
+	    $cssclass                   =   implode(", ", $cssclass);
+	    
+	    echo 
+	    "
+	    <style>
+	        {$cssclass} 
+	        {
+	            background: #DE4343 ;
+	            color: white !important;
+	        }
+	    </style>
+	    ";
+	}
+
+	/**
+	 * 準備給 PDO 的 execute() 對應陣列
+	 * 提供如 array(id => 1, title = "標題")
+	 * 
+	 * @param   $name       想要轉換字符的名稱作為鍵, 不可包含前贅字符 『:』。如 id
+	 * @param   $val        如 1
+	 * @return              bool
+	 */
+	protected static function execute_ary($name, $val)
+	{
+	    //實際欄位名稱
+	    $coln = ltrim($name, "_");
+
+	    self::$select_condition[$coln] = $val;
+
+	    return true;
+	}
+
+	/**
+	 * 使用在組合 where ... in ... 語句, 產生如 where id in (?, ?, ?) 
+	 * 
+	 * @param   $name    要替換的辨識字符。 如 where id in (1, 3, 5), 那就是填 id
+	 * @param   $inary   in 的陣列。 如 array(1, 3, 5)
+	 * @return [type]    回傳一個佔位的變數字串。可以給SQL語句使用如 where id in ($in), 將使用如 
+	 *                   where id in (:54448c5f6dd78, :54448c5f6dd80, :54448c5f6dd86)
+	 */
+	public static function in($name, array $inary)
+	{
+
+	    // 組合一個對應表, 如 array(:54448c5f6dd78 => 1)
+	    foreach ($inary as $key => $val)
+	    {
+	        $uniqid       =    uniqid();
+	        
+	        // 提供返回文字使用
+	        $return[]     =    ":{$uniqid}";
+	        
+	        $map[$uniqid] =    $val;
+	    }
+
+	    //提交給 execute_ary 陣列表
+	    foreach ($map as $key => $val) self::execute_ary($key, $val);
+
+	    //組合給返回SQL時可使用的字串
+	    $str              =    implode(", ", $return);
+	    
+	    return $str;
+	}
+
+
+	/**
+	 * 檢查有無where語句的替換值。
+	 * 
+	 * 例如將 array("title" => "標題") 形成為 array(":title" => "標題") 給 PDO::execute()
+	 * 提供 PDO::prepare() 使用 where 條件時可以透過指定 『where title = :title』將 :title 對應到 標題
+	 * 若指定使用 POST 或 GET 將自訂引用
+	 */
+	protected static function condition_replace_request()
+	{
+		
+		foreach (self::$select_condition as $column_name => $column_val)
+		{
+			if (!empty($column_val))
+			{
+				$befcondi[":" . $column_name] = $column_val;	
+			}
+
+			// 若不存在POST/GET
+			elseif (!isset(self::$request_ary))
+			{
+				$befcondi[":" . $column_name] = $column_val;
+			}
+
+			else
+			{
+				//自動添加 '' 供後續判斷
+				$befcondi[":" . $column_name] = Jsnpdo::quo(self::$request_ary[$column_name]);
+				// $befcondi[":" . $column_name] = Jsnpdo::quo(self::$request_ary[$column_name]);
+			}
+		}
+
+		//重設
+		self::$request_ary = NULL;
+
+
+		return $befcondi;
+	}
+
+
+	// 返回原始文字(如再使用 mysql 內建函式)或是跳脫
+	protected static function raw_protection($key, $val)
+	{
+		//使用 POST/GET
+		if (!isset($val))
+		{
+			return ":{$key}";
+		}
+		else
+		{
+			//前後是否包含 '
+			if (substr($val, "0", 1) == "'" and substr($val, "-1", 1) == "'")
+			{
+				return ":{$key}";
+			}
+
+			// 如 now() 
+			return $val;
+		}
+
+	}
 
 	/**
 	 * 除錯 CSS樣式 
@@ -862,9 +920,8 @@ class Jsnpdo extends Abstract_Jsnpdo
 		
 		foreach ($ary as $key => $val) 
 		{
-			$msg 		=	str_replace($key, self::quo($val), $msg);
+			$msg 		=	str_replace($key, $val, $msg);
 		}
-		
 		return (count($ary) > 0) ? $msg : $sql;
 	}
 

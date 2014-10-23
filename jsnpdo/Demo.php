@@ -14,10 +14,10 @@ try
 {
 
 
-    echo "<h1>打造工廠來產生模型</h1>";
 
-    //選用 CSS 除錯樣式
-        Jsnpdo_factory::debug_style("block");
+
+    
+    echo "<h1>打造工廠來產生模型</h1>";
 
     //指定別名
         Jsnpdo_factory::map(array
@@ -80,7 +80,8 @@ try
         Jsnpdo_factory::create($sql_create);
 
         //假使別名操作
-        jsntable_second::ary("title", "標題");
+        jsntable_second::ary("title", "標題", true); //第三個參數用來判斷是否使用'' 預設true 可省略不寫。
+        jsntable_second::ary("content", " now() ", false); // 使用 MySQL 內建函數時
         jsntable_second::iary("POST");
 
         $sql_drop = "drop table `jsntable_2`";
@@ -91,7 +92,7 @@ try
     //新增 長名 insert()
     //資料表名稱::欄位 = 值;
         jsntable::ary("title", "標題");
-        $result = jsntable::iary(); 
+        $result = jsntable::iary();
         if ($result > 0) echo "新增{$result}筆成功 <br>";
         else throw new Exception("修改發生錯誤");
 
@@ -256,16 +257,19 @@ try
 
     //insert 或 iary
         unset($ary);
-        $ary['title']            =        "傳統寫法 iary 1";
+        $ary['title']            =        $j->quo("傳統寫法 iary 1");
         $result                  =        $j->iary("jsntable", $ary);
         if ($result > 0) echo "新增成功 <br>";
+        else throw new Exception("新增發生錯誤");
+        
 
-        $_POST['title']          =        "經由POST iary 2";
+        $_POST['title']          =        $j->quo("經由POST iary 2");
         $ary['title']            =        NULL;
         $result                  =        $j->iary("jsntable", $ary, "POST");
         // 若要 debug 的參數, 可在第四個參數指定 1 str chk
             // $result                  =        $j->iary("jsntable", $ary, "POST", "chk");
         if ($result > 0) echo "新增成功 <br>";
+        else throw new Exception("新增發生錯誤");
 
 
     //select 或 sel 多種用法 
@@ -276,51 +280,58 @@ try
         $place_holder            = $j->in("id", array(1, 3));
         $DataList   = $j->sel("*", "jsntable", "where id in ({$place_holder})");
         if ($DataList != 0) echo "查詢 in 成功<br>";
+        else throw new Exception("查詢 in 發生錯誤");
 
         // like
         $j->_id("%1%");
         $DataList   = $j->sel("*", "jsntable", "where id like :id");
         if ($DataList != 0) echo "查詢 like 成功<br>";
+        else throw new Exception("查詢 like 發生錯誤");
         
         // beteween
         $j->_start(0);
         $j->_end(3);
         $DataList   = $j->sel("*", "jsntable", "where id between :start and :end ");
         if ($DataList != 0) echo "查詢 beteween 成功<br>";
+        else throw new Exception("查詢 beteween 發生錯誤");
 
 
     //select_one 或 selone
         $j->_id(1);
         $DataInfo = $j->selone("*", "jsntable", "where id = :id");
         if ($DataInfo != 0) echo "查詢單筆成功<br>";
+        else throw new Exception("查詢單筆發生錯誤");
 
     //update 或 uary
         unset($_POST, $ary);
-        $_POST['title']             =    "經由 POST 修改" . time();
+        $_POST['title']             =    $j->quo("經由 POST 修改" . time());
         $j->_id(1);
         $ary['title']               =    NULL;
-        $ary['content']             =    "內容修改" . time();
+        $ary['content']             =    $j->quo("內容修改" . time());
         $result                     =    $j->uary("jsntable", $ary, "where id = :id", "POST");
         if ($result > 0)                 echo "修改成功 <br>";
+        else throw new Exception("修改發生錯誤");
 
     //delete
         unset($_POST, $ary);
         $j->_id(2);
         $result                     =    $j->delete("jsntable", "id = :id");
         if ($result > 0)                 echo "刪除成功 <br>";
+        else throw new Exception("刪除發生錯誤");
 
     //多筆增加
         $j::$get_string             =    true;
         $i=0; while($i++ < 5)
         {
-            $ary['content']         =    "使用多筆新增 {$i}";
+            $ary['content']         =    $j->quo("使用多筆新增 {$i}");
             $with[]                 =    $j->iary("jsntable", $ary, "POST");
         }
         $j::$get_string             =    false;
 
         //若要 debug 可以添加第二個參數 Jsnpdo::with($with, 1);
-        $result                     =    Jsnpdo::with($with);
+        $result                     =    $j->with($with);
         if ($result > 0)                 echo "一次多筆新增成功<br>";
+        else throw new Exception("一次多筆新增發生錯誤");
 
     //快取
         $j::$cache_life             =     10; 
@@ -329,6 +340,8 @@ try
         $j::cache(false);
         echo "快取存活時間" . $j::$cache_life . "秒, 取得查詢快取的狀態成功：" . $j->cache_set_get() . "<br>";
         if ($j::$select_num > 0)         echo "快取查詢成功<br>";
+        else throw new Exception("快取查詢發生錯誤");
+
 
         $j::$cache_life             =     5; 
         $j::cache(true);
@@ -336,6 +349,7 @@ try
         $j::cache(false);
         echo "快取存活時間" . $j::$cache_life . "秒, 取得查詢快取的狀態成功：" . $j->cache_set_get() . "<br>";
         if ($j::$select_num > 0)         echo "快取查詢成功<br>";
+        else throw new Exception("快取查詢發生錯誤");
 
     //取得快取鍵
         $cache_key = $j->cache_key_get();
@@ -367,6 +381,7 @@ try
     //truncate
         $result                     =    $j->truncate("jsntable");
         if (!empty($result))             echo "清空成功<br>";
+        else throw new Exception("清空發生錯誤");
 
     // 刪除資料表
         $sql                        =     "DROP TABLE `jsntable`";
@@ -374,8 +389,10 @@ try
         if ($result->queryString == $sql)
             echo "刪除資料表成功";
         else
-            throw new Exception("刪除資料表錯誤 <br>");
+            throw new Exception("刪除資料表錯誤");
 
+    //end
+        echo "<h1>測試成功</h1>";
 
 }
 catch(Exception $e)
