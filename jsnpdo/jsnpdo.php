@@ -429,7 +429,7 @@ class Jsnpdo extends Abstract_Jsnpdo
 		{
 			self::$debug_msg 	= 	self::sql_replace_condition($sql);
 
-			self::sel("*", $table_name, "", "str");
+			self::sel("*", $table_name, "where {$where} ", "str");
 		}
 
 		$result 				=	self::query($sql, $status_debug);
@@ -1055,7 +1055,7 @@ class Jsnpdo extends Abstract_Jsnpdo
 					left: 0px;
 					right: 0px;
 					opacity: 0.1;
-					transition: 0.5s all;
+					transition: 0.2s all;
 				}
 				.php_jsnao_warning_style:hover 
 				{
