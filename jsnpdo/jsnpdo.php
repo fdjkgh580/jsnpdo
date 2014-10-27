@@ -1,7 +1,10 @@
-
 <?php
 
 /**
+ * v3.4.1
+ * - 添加除錯樣式 deubg() 
+ * - 修正 jsnpdo.php 的開頭出現空白，造成提早輸出的問題
+ *
  *
  * v3.4
  * - 修正 CSS 除錯樣式色彩
@@ -134,7 +137,7 @@ class Jsnpdo extends Abstract_Jsnpdo
 
 
 		// debug 純文字
-		if (self::debug($status_debug) == 1)
+		if (self::get_debug($status_debug) == 1)
 		{
 			$msg 				=	self::sql_replace_condition($sql);
 
@@ -227,9 +230,10 @@ class Jsnpdo extends Abstract_Jsnpdo
 		$sql 				= 	" insert into `{$table_name}` ({$col_name_str}) values ({$col_val_str}); ";
 
 		//debug str
-		if (self::debug($status_debug) == "str")
+		if (self::get_debug($status_debug) == "str")
 		{
-			self::$debug_msg 	=    $sql;
+			//轉換
+			self::$debug_msg 	=    self::sql_replace_condition($sql);
 
 			$pk 			  	=    self::primary_key($table_name);
 
@@ -290,7 +294,7 @@ class Jsnpdo extends Abstract_Jsnpdo
 		$sql 						=	"update `{$table_name}` set {$cond} {$else}; ";
 
 		//debug str
-		if (self::debug($status_debug) == "str")
+		if (self::get_debug($status_debug) == "str")
 		{
 			//轉換
 			self::$debug_msg 		= 	self::sql_replace_condition($sql);
@@ -425,7 +429,7 @@ class Jsnpdo extends Abstract_Jsnpdo
 		$sql					=	"delete from {$table_name} where {$where}; ";
 
 		//debug str
-		if (self::debug($status_debug) == "str")
+		if (self::get_debug($status_debug) == "str")
 		{
 			self::$debug_msg 	= 	self::sql_replace_condition($sql);
 
@@ -455,7 +459,7 @@ class Jsnpdo extends Abstract_Jsnpdo
 		$sql					=	"truncate table `{$table_name}`;";
 
 		//debug str
-		if (self::debug($status_debug) == "str")
+		if (self::get_debug($status_debug) == "str")
 		{
 			self::$debug_msg 	= 	$sql;
 
@@ -774,7 +778,7 @@ class Jsnpdo extends Abstract_Jsnpdo
 	//除錯時避免資料量過大，將自動添加 limit
 	protected static function debug_auto_limit($else, $status_debug)
 	{
-		if (self::debug($status_debug) == "str" or self::debug($status_debug) == "chk") 
+		if (self::get_debug($status_debug) == "str" or self::get_debug($status_debug) == "chk") 
 		{
 			if (!empty($else)) 
 			{
@@ -845,7 +849,7 @@ class Jsnpdo extends Abstract_Jsnpdo
 		self::$select_num  		=	$result->rowCount();
 
 		// debug str
-		if (self::debug($status_debug) == "str")
+		if (self::get_debug($status_debug) == "str")
 		{
 
 			// 轉換
@@ -882,7 +886,7 @@ class Jsnpdo extends Abstract_Jsnpdo
 		}
 
 		// debug chk
-		if (self::debug($status_debug) == "chk")
+		if (self::get_debug($status_debug) == "chk")
 		{
 			if (self::$select_num > 0)
 			{
@@ -926,15 +930,17 @@ class Jsnpdo extends Abstract_Jsnpdo
 	}
 
 
-	
-
-
-	
-
+	//可供外部設定debug
 	public static function debug($status_debug)
 	{
+		self::$debug = $status_debug;
+	}
+
+	
+	//取得debug字串
+	protected static function get_debug($status_debug)
+	{
 		$result 					=	empty($status_debug) ? self::$debug : $status_debug;
-		
 		return $result;
 	}
 

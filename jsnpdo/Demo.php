@@ -91,6 +91,7 @@ try
 
     //新增 長名 insert()
     //資料表名稱::欄位 = 值;
+        // jsntable::debug("str"); //可由外部指定debug方式
         jsntable::ary("title", "標題");
         $result = jsntable::iary();
         if ($result > 0) echo "新增{$result}筆成功 <br>";
@@ -258,7 +259,7 @@ try
     //insert 或 iary
         unset($ary);
         $ary['title']            =        $j->quo("傳統寫法 iary 1");
-        $result                  =        $j->iary("jsntable", $ary);
+        $result                  =        $j->iary("jsntable", $ary, NULL);
         if ($result > 0) echo "新增成功 <br>";
         else throw new Exception("新增發生錯誤");
         

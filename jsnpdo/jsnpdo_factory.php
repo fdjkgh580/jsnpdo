@@ -417,6 +417,13 @@ class Jsnpdo_factory
             return Jsnpdo::$sql;
         }
 
+        //設定debug
+        elseif ($name == "debug")
+        {
+            return jsnpdo::debug($arguments[0]);
+        }
+
+        //debug 樣式
         elseif ($name == "debug_style")
         {
             return Jsnpdo::debug_style($arguments[0]);
