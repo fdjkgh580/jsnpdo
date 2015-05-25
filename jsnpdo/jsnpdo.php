@@ -2,6 +2,15 @@
 
 /**
  *
+ * v3.4.4
+ * - 解決 where in 在 debug 的時候，欄位值無法正常替換顯示
+ * - 解決 update 在 where 子句的欄位值多了 ''
+ * - 修正如 where in 在使用陣列指定時，原本如 array(1, 3) 轉換為 where id in ('1', '3')時，
+ *   會自動添加 '' 的問題，如今修改為不自動添加 ''。這樣當使用SQL函數時如 array("now()", 3) 時，
+ *   才會被轉換為 where id in (now(), 3)。
+ *   
+ *   
+ * 
  * v3.4.3
  * - 解決當欄位名稱出現部分雷同文字時，在debug模式下的值出現取代錯誤
  * - 修正上述修正後的併發狀況，出現在iary()與uary()是否有where子句時，是否自動添加 ''
@@ -272,6 +281,7 @@ class Jsnpdo extends Abstract_Jsnpdo
         // 修改的欄位與值。
         // $ary 原型如 $ary['title'] = "標題";
         foreach ($ary as $key => $val) {
+
             $uk = self::raw_protection($key, $val);
 
             $str[] = " `{$key}` = $uk ";
@@ -300,7 +310,9 @@ class Jsnpdo extends Abstract_Jsnpdo
         $result = self::query($sql, $status_debug, true);
 
         if (self::$get_string == 1) {
+
             return $result;
+ 
         }
 
         return $result->rowCount();
@@ -612,14 +624,14 @@ class Jsnpdo extends Abstract_Jsnpdo
         echo
 
         "
-	    <style>
-	        {$cssclass}
-	        {
-	            background: #DE4343 ;
-	            color: white !important;
-	        }
-	    </style>
-	    ";
+        <style>
+            {$cssclass}
+            {
+                background: #DE4343 ;
+                color: white !important;
+            }
+        </style>
+        ";
     }
 
     /**
@@ -654,11 +666,11 @@ class Jsnpdo extends Abstract_Jsnpdo
 
         // 組合一個對應表, 如 array(:54448c5f6dd78 => 1)
         foreach ($inary as $key => $val) {
-            $uniqid = uniqid('u'). '_' . $key;
     
+            $uniqid = uniqid('u'). '_' . $key;
 
-            // 提供返回文字使用
-            $return[] = ":{$uniqid}";
+            // 提供返回文字使用, 前後須保留空白
+            $return[] = " :{$uniqid} ";
 
             $map[$uniqid] = $val;
         }
@@ -908,8 +920,10 @@ class Jsnpdo extends Abstract_Jsnpdo
 
             foreach ($ary as $key => $val) {
                 $before         = self::replace_holderspace($key, $val, $before, false);
-                $after          = self::replace_holderspace($key, $val, $after, true);
+                $after          = self::replace_holderspace($key, $val, $after, false);
             }
+
+
             $newsql = $before . $after;
         }
 
@@ -952,8 +966,10 @@ class Jsnpdo extends Abstract_Jsnpdo
         else
             $space_val      = " {$val} ";
 
-        $sql            = str_replace($space_key, $space_val, $sql);
-        return $sql;
+        $newsql            = str_replace($space_key, $space_val, $sql);
+
+
+        return $newsql;
     }
 
 
@@ -1030,114 +1046,114 @@ class Jsnpdo extends Abstract_Jsnpdo
             echo
 
             "
-				<style>
-				.php_jsnao_warning_style
-				{
-					border: 1px solid rgb(156, 151, 151);
-					background: #E6E6E6;
-					font-family: consolas, '微軟正黑體';
-					line-height: 1.7em;
-					margin-top: 0.1em;
-					margin-bottom: 0.1em;
-					padding: 1em;
-					border-radius: 4px;
-					font-size: 18px;
-					word-break: break-all;
-				}
-				.php_jsnao_warning_style .orgmsg
-				{
-					background: #0CC09F;
-					color: white;
-					padding:1em;
-				}
-				.php_jsnao_warning_style .defmsg
-				{
-					background: #446CB3;
-					font-size: 16px;
-					color: white;
-					padding:1em 4em;
-				}
+                <style>
+                .php_jsnao_warning_style
+                {
+                    border: 1px solid rgb(156, 151, 151);
+                    background: #E6E6E6;
+                    font-family: consolas, '微軟正黑體';
+                    line-height: 1.7em;
+                    margin-top: 0.1em;
+                    margin-bottom: 0.1em;
+                    padding: 1em;
+                    border-radius: 4px;
+                    font-size: 18px;
+                    word-break: break-all;
+                }
+                .php_jsnao_warning_style .orgmsg
+                {
+                    background: #0CC09F;
+                    color: white;
+                    padding:1em;
+                }
+                .php_jsnao_warning_style .defmsg
+                {
+                    background: #446CB3;
+                    font-size: 16px;
+                    color: white;
+                    padding:1em 4em;
+                }
 
-				.php_jsnao_warning_style .db
-				{
-					width: 100% !important;
-					min-height: 240px;
-					table-layout: fixed;
-					border-collapse: collapse;
-				}
-				.php_jsnao_warning_style .db td,
-				.php_jsnao_warning_style .db th
-				{
-					border: 1px solid #616467;
-					padding: 0.3em 1em;
-				}
-				.php_jsnao_warning_style .db th
-				{
-					background: #4a4d50;
-					color:white;
-					padding-top: 1em;
-					padding-bottom: 1em;
-				}
-				.php_jsnao_warning_style .db tbody tr
-				{
-					background: rgb(250, 243, 253);
-					color: #424242;
-				}
-				.php_jsnao_warning_style .db td .kjjsi_z77100_01
-				{
-					max-height:90px;
-					min-height:50px;
-					overflow:hidden;
-					font-size: 16px;
-				}
+                .php_jsnao_warning_style .db
+                {
+                    width: 100% !important;
+                    min-height: 240px;
+                    table-layout: fixed;
+                    border-collapse: collapse;
+                }
+                .php_jsnao_warning_style .db td,
+                .php_jsnao_warning_style .db th
+                {
+                    border: 1px solid #616467;
+                    padding: 0.3em 1em;
+                }
+                .php_jsnao_warning_style .db th
+                {
+                    background: #4a4d50;
+                    color:white;
+                    padding-top: 1em;
+                    padding-bottom: 1em;
+                }
+                .php_jsnao_warning_style .db tbody tr
+                {
+                    background: rgb(250, 243, 253);
+                    color: #424242;
+                }
+                .php_jsnao_warning_style .db td .kjjsi_z77100_01
+                {
+                    max-height:90px;
+                    min-height:50px;
+                    overflow:hidden;
+                    font-size: 16px;
+                }
 
-				</style>
-			";
+                </style>
+            ";
         }
 
         if (self::$debug_style == "fixed") {
             echo
 
             "
-				<style>
-				.php_jsnao_warning_style
-				{
-					position: fixed;
-					top: 0px;
-					left: 0px;
-					right: 0px;
-					opacity: 0.1;
-					transition: 0.2s all;
-				}
-				.php_jsnao_warning_style:hover
-				{
-					opacity: 1;
-				}
-				</style>
-			";
+                <style>
+                .php_jsnao_warning_style
+                {
+                    position: fixed;
+                    top: 0px;
+                    left: 0px;
+                    right: 0px;
+                    opacity: 0.1;
+                    transition: 0.2s all;
+                }
+                .php_jsnao_warning_style:hover
+                {
+                    opacity: 1;
+                }
+                </style>
+            ";
         }
 
         echo
 
         "
-			<div class='php_jsnao_warning_style'>
+            <div class='php_jsnao_warning_style'>
 
-				<div class='sql'>{$msg}</div>
+                <div class='sql'>{$msg}</div>
 
-				<table class='db'>
-					<thead>
-						{$thead_foot}
-					</thead>
-					<tbody>
-						{$tbody}
-					</tbody>
-					<tfoot>
-						{$thead_foot}
-					</tfoot>
-				</table>
+                <table class='db'>
+                    <thead>
+                        {$thead_foot}
+                    </thead>
+                    <tbody>
+                        {$tbody}
+                    </tbody>
+                    <tfoot>
+                        {$thead_foot}
+                    </tfoot>
+                </table>
 
-			</div>
-		";
+            </div>
+        ";
         if ($continue_stop == "stop") {
             die;
         }
