@@ -1,7 +1,14 @@
 <?php
 
 /**
+ * v3.4.5
+ * - 添加 __call() 第三個參數，決定是否自動 quote()。主要可用在 
+ *   $j->_id("col + 1", false); //使用如 where id = col + 1
+ *   $j->_id("col + 1"); //則會是 where id = 'col + 1' 。
+ * - 解決 iary() 在 debug 的時候會出現無法替換 POST/GET 的問題。
+ * - 簡化 _call __callStatic
  *
+ * 
  * v3.4.4
  * - 解決 where in 在 debug 的時候，欄位值無法正常替換顯示
  * - 解決 update 在 where 子句的欄位值多了 ''
@@ -217,7 +224,8 @@ class Jsnpdo extends Abstract_Jsnpdo
         self::check_param_post_get($post_get);
 
         // $ary 原型如 $ary['title'] = "標題";
-        foreach ($ary as $key => $val) {
+        foreach ($ary as $key => $val) 
+        {
             $key_trim = trim($key);
 
             //欄位名稱陣列
@@ -229,14 +237,16 @@ class Jsnpdo extends Abstract_Jsnpdo
             self::$select_condition[$key] = $val;
         }
 
-        $col_name_str = implode(", ", $col_name);
 
-        $col_val_str = implode(", ", $col_val);
+        $col_name_str = implode(" , ", $col_name);
 
-        $sql = " insert into `{$table_name}` ({$col_name_str}) values ({$col_val_str}); ";
+        $col_val_str = implode(" , ", $col_val);
+
+        $sql = " insert into `{$table_name}` ( {$col_name_str} ) values ( {$col_val_str} ); ";
 
         //debug str
         if (self::get_debug($status_debug) == "str") {
+
             //轉換
             self::$debug_msg = self::sql_replace_condition($sql);
 
@@ -327,20 +337,22 @@ class Jsnpdo extends Abstract_Jsnpdo
 
     public static function __callStatic($name, $arguments)
     {
-        //是欄位嗎
-        if (substr($name, 0, 1) == "_") {
-            self::execute_ary($name, $arguments[0]);
-        }
+        self::for_call($name, $arguments);
     }
 
     //使用在where中, 如 $j->_id(1); 代表形成字串 id = :id, 且要將 :id 代表為 1
     public function __call($name, $arguments)
     {
+        self::for_call($name, $arguments);
+    }
+
+    protected static function for_call($name, $arguments)
+    {
         //是欄位嗎
         if (substr($name, 0, 1) == "_") {
-            self::execute_ary($name, $arguments[0]);
+            $bool = isset($arguments[1]) ? false : true;
+            self::execute_ary($name, $arguments[0], $bool);
         }
-
     }
 
     /**
@@ -640,12 +652,15 @@ class Jsnpdo extends Abstract_Jsnpdo
      *
      * @param   $name       想要轉換字符的名稱作為鍵, 不可包含前贅字符 『:』。如 id
      * @param   $val        如 1
+     * @param   $isquote    是否自動添加 ''。
      * @return              bool
      */
-    protected static function execute_ary($name, $val)
+    protected static function execute_ary($name, $val, $isquote)
     {
         //實際欄位名稱
         $coln = ltrim($name, "_");
+
+        $val  = $isquote == true ? self::quo($val) : $val;
 
         self::$select_condition[$coln] = $val;
 
@@ -679,7 +694,7 @@ class Jsnpdo extends Abstract_Jsnpdo
 
         //提交給 execute_ary 陣列表
         foreach ($map as $key => $val) {
-            self::execute_ary($key, $val);
+            self::execute_ary($key, $val, false);
         }
 
         //組合給返回SQL時可使用的字串
@@ -697,7 +712,7 @@ class Jsnpdo extends Abstract_Jsnpdo
      */
     protected static function condition_replace_request()
     {
-
+       
         foreach (self::$select_condition as $column_name => $column_val) {
             if (!empty($column_val)) {
                 $befcondi[":" . $column_name] = $column_val;
@@ -723,9 +738,14 @@ class Jsnpdo extends Abstract_Jsnpdo
     // 返回原始文字(如再使用 mysql 內建函式)或是跳脫
     protected static function raw_protection($key, $val)
     {
+
+
+
         //使用 POST/GET
         if (!isset($val)) {
+
             return ":{$key}";
+        
         } else {
             //前後是否包含 '
             if (substr($val, "0", 1) == "'" and substr($val, "-1", 1) == "'") {
@@ -826,9 +846,7 @@ class Jsnpdo extends Abstract_Jsnpdo
         }
 
         //數量
-        $obj->count =
-
-        self::$select_num = $result->rowCount();
+        $obj->count = self::$select_num = $result->rowCount();
 
         // debug str
         if (self::get_debug($status_debug) == "str") {
@@ -912,19 +930,20 @@ class Jsnpdo extends Abstract_Jsnpdo
             else
             {
                 list($before, $after) = explode("where", $sql);
-                $after      .=  "where ";
+                $after      =  " where {$after}";
             }
 
             $before = self::match_format(true, $before);
             $after = self::match_format(true, $after);
 
-            foreach ($ary as $key => $val) {
+            foreach ($ary as $key => $val) 
+            {
                 $before         = self::replace_holderspace($key, $val, $before, false);
                 $after          = self::replace_holderspace($key, $val, $after, false);
             }
 
-
             $newsql = $before . $after;
+
         }
 
         //若沒有 where 子句，SQL全句查找替換，不必添加 ''
@@ -938,6 +957,8 @@ class Jsnpdo extends Abstract_Jsnpdo
             }
         }
 
+
+        
 
 
         //還原結尾
