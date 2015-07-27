@@ -19,6 +19,24 @@ jsnpdo
 ###說明書
 
 <pre>
+
+    /**v3.4.6**/
+    - 修正除錯時的 CSS 樣式
+    
+    /**v3.4.5**/
+    - 添加 __call() 第三個參數，決定是否自動 quote()。主要可用在 
+      $j->_id("col + 1", false); //使用如 where id = col + 1
+      $j->_id("col + 1"); //則會是 where id = 'col + 1' 。
+    - 解決 iary() 在 debug 的時候會出現無法替換 POST/GET 的問題。
+    - 簡化 _call __callStatic
+    
+    /**v3.4.4**/
+    - 解決 where in 在 debug 的時候，欄位值無法正常替換顯示
+    - 解決 update 在 where 子句的欄位值多了 ''
+    - 修正如 where in 在使用陣列指定時，原本如 array(1, 3) 轉換為 where id in ('1', '3')時，
+      會自動添加 '' 的問題，如今修改為不自動添加 ''。這樣當使用SQL函數時如 array("now()", 3) 時，
+      才會被轉換為 where id in (now(), 3)。
+
     /**v3.4.3 **/
     - 解決當欄位名稱出現部分雷同文字時，在debug模式下的值出現取代錯誤
     - 修正上述修正後的併發狀況，出現在iary()與uary()是否有where子句時，是否自動添加 ''
