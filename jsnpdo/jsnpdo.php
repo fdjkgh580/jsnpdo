@@ -1,6 +1,10 @@
 <?php
 
 /**
+ *
+ * v3.4.6
+ * - 修正除錯時的 CSS 樣式
+ * 
  * v3.4.5
  * - 添加 __call() 第三個參數，決定是否自動 quote()。主要可用在 
  *   $j->_id("col + 1", false); //使用如 where id = col + 1
@@ -1079,7 +1083,7 @@ class Jsnpdo extends Abstract_Jsnpdo
                     padding: 1em;
                     border-radius: 4px;
                     font-size: 18px;
-                    word-break: break-all;
+
                 }
                 .php_jsnao_warning_style .orgmsg
                 {
@@ -1094,10 +1098,16 @@ class Jsnpdo extends Abstract_Jsnpdo
                     color: white;
                     padding:1em 4em;
                 }
+                .php_jsnao_warning_style .db_wrap
+                {
+                    width: 100%;
+                    overflow-X: scroll;
+                    overflow-Y: auto;
+                }
 
                 .php_jsnao_warning_style .db
                 {
-                    width: 100% !important;
+                    min-width: 100% !important;
                     min-height: 240px;
                     table-layout: fixed;
                     border-collapse: collapse;
@@ -1161,17 +1171,19 @@ class Jsnpdo extends Abstract_Jsnpdo
 
                 <div class='sql'>{$msg}</div>
 
-                <table class='db'>
-                    <thead>
-                        {$thead_foot}
-                    </thead>
-                    <tbody>
-                        {$tbody}
-                    </tbody>
-                    <tfoot>
-                        {$thead_foot}
-                    </tfoot>
-                </table>
+                <div class='db_wrap'>
+                    <table class='db'>
+                        <thead>
+                            {$thead_foot}
+                        </thead>
+                        <tbody>
+                            {$tbody}
+                        </tbody>
+                        <tfoot>
+                            {$thead_foot}
+                        </tfoot>
+                    </table>
+                </div>
 
             </div>
         ";
